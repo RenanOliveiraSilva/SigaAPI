@@ -7,9 +7,9 @@ import {
     ZodTypeProvider,
     jsonSchemaTransform,
 } from 'fastify-type-provider-zod';
-import { z } from 'zod';
-import fastifySwagger from '@fastify/swagger';
 
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -21,7 +21,7 @@ app.register(fastifyCors, {
     origin: true
 });
 
-//Doxumentação da API
+//Documentação da API
 app.register(fastifySwagger, {
     openapi: {
       info: {
@@ -31,6 +31,16 @@ app.register(fastifySwagger, {
     },
     transform: jsonSchemaTransform,
 })
+
+app.register(fastifySwaggerUi, {
+  routePrefix: '/docs',
+})
+
+//Importação das rotas
+import { GetDataOfStudent } from './routes/get-data-of-student-route';
+
+//Registro das rotas
+app.register(GetDataOfStudent);
 
 //Execução do servidor
 app.listen({port: 3333}).then(() => {

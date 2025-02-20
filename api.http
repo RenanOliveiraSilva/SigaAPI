@@ -1,0 +1,10 @@
+@host = localhost:3333
+
+### Subscribe to event
+POST http://{{host}}/student
+Content-Type: application/json
+
+{
+  "user": "49461227884",
+  "password": "senha001"
+}
