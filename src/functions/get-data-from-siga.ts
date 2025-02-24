@@ -41,7 +41,7 @@ export async function GetDataFromSiga(contextPage: Page): Promise<AlunoData | nu
       }, {} as Record<keyof typeof selectors, string>);
     }, selectors);
 
-    console.log("✅Dados extraídos com sucesso!");
+    console.log("✅ Dados extraídos com sucesso!");
     return data as AlunoData;
 
   } catch (error) {
