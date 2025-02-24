@@ -1,5 +1,6 @@
 import { fastify } from 'fastify';
 import { fastifyCors } from '@fastify/cors';
+import studentHistoryRoutes from "./routes/get-student-history-route";
 
 import {
     validatorCompiler,
@@ -20,6 +21,9 @@ app.setValidatorCompiler(validatorCompiler);
 app.register(fastifyCors, {
     origin: true
 });
+
+app.register(studentHistoryRoutes);
+
 
 //Documentação da API
 app.register(fastifySwagger, {
