@@ -4,7 +4,8 @@ interface AlunoData {
   nome: string;
   ra: string;
   semestre: string;
-  email: string;
+  email_pessoal: string;
+  email_institucional: string;
   faculdade: string;
   curso: string;
   situacaoCurso: string;
@@ -26,7 +27,8 @@ export async function GetDataFromSiga(contextPage: Page): Promise<AlunoData | nu
       nome: "#span_MPW0041vPRO_PESSOALNOME",
       ra: "#span_MPW0041vACD_ALUNOCURSOREGISTROACADEMICOCURSO",
       semestre: "#span_MPW0041vACD_ALUNOCURSOCICLOATUAL",
-      email: "#span_vPRO_PESSOALEMAIL",
+      email_pessoal: "#span_vPRO_PESSOALEMAIL",
+      email_institucional: "#span_MPW0041vINSTITUCIONALFATEC",
       faculdade: "#span_vUNI_UNIDADENOME_MPAGE",
       curso: "#span_vACD_CURSONOME_MPAGE",
       situacaoCurso: "#span_vSITUACAO_MPAGE",
