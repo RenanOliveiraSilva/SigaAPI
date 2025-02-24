@@ -24,7 +24,8 @@ export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
                         faculdade: z.string(),
                         curso: z.string(),
                         situacaoCurso: z.string(),
-                        periodoCurso: z.string()
+                        periodoCurso: z.string(),
+                        materias: z.array(z.string()) // 🔹 Agora inclui a lista de matérias
                     })
                 }),
                 400: z.object({
@@ -41,34 +42,41 @@ export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
 
         const { success, browser, page } = await studentLogin(user, password);
 
-        if(!success) {
+        if (!success) {
             return reply.status(401).send({
                 loggin: success
-            })
+            });
         }
-        
 
         if (!browser || !page) {
             return reply.status(400).send({
                 loggin: false,
                 message: 'Browser or page not found'
-            })
+            });
         }
 
         const data = await GetDataFromSiga(page);
 
+        await browser.close(); // 🔹 Fecha o navegador para evitar vazamento de memória
+
+        // 🔹 Se `data` for nulo, retorna um JSON vazio no mesmo formato esperado
+        const responseData = data ?? {
+            nome: '',
+            ra: '',
+            semestre: '',
+            email: '',
+            faculdade: '',
+            curso: '',
+            situacaoCurso: '',
+            periodoCurso: '',
+            materias: [] // 🔹 Garante que `materias` sempre seja um array
+        };
+
+        // console.log("📢 JSON retornado na API:", JSON.stringify(responseData, null, 2)); // 🔹 Depuração
+
         return reply.status(200).send({
             loggin: success,
-            data: data ?? {
-                nome: '',
-                ra: '',
-                semestre: '',
-                email: '',
-                faculdade: '',
-                curso: '',
-                situacaoCurso: '',
-                periodoCurso: ''
-            }
-        })
-    })
+            data: responseData
+        });
+    });
 }
