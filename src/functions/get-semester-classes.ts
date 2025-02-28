@@ -1,6 +1,6 @@
 import { Page } from "puppeteer";
 
-export async function GetAcademicPlan(contextPage: Page): Promise<string[] | null> {
+export async function GetSemesterClasses(contextPage: Page): Promise<string[] | null> {
     try {
     // ***Navegar para a página de horários***
     await contextPage.goto('https://siga.cps.sp.gov.br/aluno/horario.aspx', { waitUntil: 'networkidle2' });

@@ -2,7 +2,8 @@ import { z } from "zod";
 import { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { studentLogin } from "../functions/student-login";
 import { GetDataFromSiga } from "../functions/get-data-from-siga";
-import { GetAcademicPlan } from "../functions/get-academic-plan";
+import { GetSemesterClasses } from "../functions/get-semester-classes";
+import { GetStudentHistory } from "../functions/get-student-history";
 
 export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
     app.post('/student', {
@@ -27,7 +28,14 @@ export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
                         situacaoCurso: z.string(),
                         periodoCurso: z.string()
                     }),
-                    material: z.array(z.string())
+                    material: z.array(z.string()),
+                    history: z.array(z.object({
+                        disciplina: z.string(),
+                        periodo: z.string(),
+                        mediaFinal: z.string(),
+                        frequencia: z.string(),
+                        observacao: z.string()
+                    })),
                 }),
                 400: z.object({
                     loggin: z.boolean(),
@@ -58,7 +66,8 @@ export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
         }
 
         const data = await GetDataFromSiga(page);
-        const material = await GetAcademicPlan(page);
+        const material = await GetSemesterClasses(page);
+        const history = await GetStudentHistory(page);
 
         return reply.status(200).send({
             loggin: success,
@@ -72,7 +81,8 @@ export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
                 situacaoCurso: '',
                 periodoCurso: ''
             },
-            material: material ?? []
+            material: material ?? [],
+            history: history ?? []
         })
     })
 }

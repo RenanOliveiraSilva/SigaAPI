@@ -25,7 +25,7 @@ export async function GetDataFromSiga(contextPage: Page): Promise<AlunoData | nu
       nome: "#span_MPW0041vPRO_PESSOALNOME",
       ra: "#span_MPW0041vACD_ALUNOCURSOREGISTROACADEMICOCURSO",
       semestre: "#span_MPW0041vACD_ALUNOCURSOCICLOATUAL",
-      email: "#span_vPRO_PESSOALEMAIL",
+      email: "#span_MPW0041vINSTITUCIONALFATEC",
       faculdade: "#span_vUNI_UNIDADENOME_MPAGE",
       curso: "#span_vACD_CURSONOME_MPAGE",
       situacaoCurso: "#span_vSITUACAO_MPAGE",
