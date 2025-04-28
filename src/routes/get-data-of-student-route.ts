@@ -1,88 +1,19 @@
-import { z } from "zod";
-import { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { studentLogin } from "../functions/student-login";
-import { GetDataFromSiga } from "../functions/get-data-from-siga";
-import { GetSemesterClasses } from "../functions/get-semester-classes";
-import { GetStudentHistory } from "../functions/get-student-history";
+// src/routes/get-data-of-student-route.ts
 
-export const GetDataOfStudent: FastifyPluginAsyncZod = async (app) => {
-    app.post('/student', {
-        schema: {
-            name: 'student',
-            tags: ['Student'],
-            description: 'Get data of student',
-            body: z.object({
-                user: z.string(),
-                password: z.string()
-            }),
-            response: {
-                200: z.object({
-                    loggin: z.boolean(),
-                    data: z.object({
-                        nome: z.string(),
-                        ra: z.string(),
-                        semestre: z.string(),
-                        email: z.string(),
-                        faculdade: z.string(),
-                        curso: z.string(),
-                        situacaoCurso: z.string(),
-                        periodoCurso: z.string()
-                    }),
-                    material: z.array(z.string()),
-                    history: z.array(z.object({
-                        disciplina: z.string(),
-                        periodo: z.string(),
-                        mediaFinal: z.string(),
-                        frequencia: z.string(),
-                        observacao: z.string()
-                    })),
-                }),
-                400: z.object({
-                    loggin: z.boolean(),
-                    message: z.string()
-                }),
-                401: z.object({
-                    loggin: z.boolean()
-                })
-            }
-        }
-    }, async (request, reply) => {
-        const { user, password } = request.body;
+import { FastifyInstance } from 'fastify';
+import { buscarNomeUsuario } from '../services/SigaScraper';
 
-        const { success, browser, page } = await studentLogin(user, password);
-
-        if(!success) {
-            return reply.status(401).send({
-                loggin: success
-            })
-        }
-        
-
-        if (!browser || !page) {
-            return reply.status(400).send({
-                loggin: false,
-                message: 'Browser or page not found'
-            })
-        }
-
-        const data = await GetDataFromSiga(page);
-        const material = await GetSemesterClasses(page);
-        const history = await GetStudentHistory(page);
-
-        return reply.status(200).send({
-            loggin: success,
-            data: data ?? {
-                nome: '',
-                ra: '',
-                semestre: '',
-                email: '',
-                faculdade: '',
-                curso: '',
-                situacaoCurso: '',
-                periodoCurso: ''
-            },
-            material: material ?? [],
-            history: history ?? []
-        })
-    })
+export async function GetDataOfStudent(app: FastifyInstance) {
+  app.get('/usuario', async (request, reply) => {
+    try {
+      const nome = await buscarNomeUsuario();
+      if (!nome) {
+        return reply.status(401).send({ error: 'Sessão inválida ou expirada.' });
+      }
+      return { nome };
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ error: 'Erro interno' });
+    }
+  });
 }
