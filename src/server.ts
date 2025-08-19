@@ -1,48 +1,24 @@
-import { fastify } from 'fastify';
-import { fastifyCors } from '@fastify/cors';
+import { config } from "dotenv";
+config();
 
-import {
-    validatorCompiler,
-    serializerCompiler,
-    ZodTypeProvider,
-    jsonSchemaTransform,
-} from 'fastify-type-provider-zod';
+import { buildApp } from "./app";
 
-import fastifySwagger from '@fastify/swagger';
-import fastifySwaggerUi from '@fastify/swagger-ui';
+const port = Number(process.env.PORT ?? 3333);
+const host = process.env.HOST ?? "0.0.0.0";
 
-const app = fastify().withTypeProvider<ZodTypeProvider>();
+const start = async () => {
+  const app = await buildApp();
+  await app.listen({ port, host });
+  app.log.info(`🚀 SIGA API rodando em http://${host}:${port}  (docs em /docs)`);
 
-app.setSerializerCompiler(serializerCompiler);
-app.setValidatorCompiler(validatorCompiler);
+  // Graceful shutdown
+  const close = async (signal: string) => {
+    app.log.info({ signal }, "Encerrando...");
+    await app.close();
+    process.exit(0);
+  };
+  process.on("SIGINT", () => close("SIGINT"));
+  process.on("SIGTERM", () => close("SIGTERM"));
+};
 
-//Medida de segurança para permitir que qualquer origem acesse a API
-app.register(fastifyCors, {
-    origin: true
-});
-
-//Documentação da API
-app.register(fastifySwagger, {
-    openapi: {
-      info: {
-        title: 'SIGA API',
-        version: '0.1',
-      },
-    },
-    transform: jsonSchemaTransform,
-})
-
-app.register(fastifySwaggerUi, {
-  routePrefix: '/docs',
-})
-
-//Importação das rotas
-import { GetDataOfStudent } from './routes/get-data-of-student-route';
-
-//Registro das rotas
-app.register(GetDataOfStudent);
-
-//Execução do servidor
-app.listen({port: 3333}).then(() => {
-    console.log('Server is running on port 3333');
-})
+start();
