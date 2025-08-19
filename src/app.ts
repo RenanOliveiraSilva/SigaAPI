@@ -1,5 +1,4 @@
 import { fastify, FastifyInstance } from "fastify";
-import pino from "pino";
 import { fastifyCors } from "@fastify/cors";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
@@ -15,11 +14,25 @@ import {
 
 // Rotas
 import { GetDataOfStudent } from "./routes/get-data-of-student-route";
+import { GetCookiesOfStudent } from "./routes/get-cookies-from-student-route";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
-    logger: pino({ level: process.env.LOG_LEVEL ?? "info" }),
-    trustProxy: true, // útil se tiver ALB/CloudFront na frente
+    logger: {
+      level: process.env.LOG_LEVEL ?? "info",
+      transport:
+        process.env.NODE_ENV !== "production"
+          ? {
+              target: "pino-pretty",
+              options: {
+                colorize: true,
+                translateTime: "HH:MM:ss.l",
+                ignore: "pid,hostname",
+              },
+            }
+          : undefined,
+    },
+    trustProxy: true,
   }).withTypeProvider<ZodTypeProvider>();
 
   // Compilers do Zod
@@ -31,10 +44,17 @@ export async function buildApp(): Promise<FastifyInstance> {
     contentSecurityPolicy: false, // ajuste caso use swagger-ui
   });
 
-  // CORS (pode ser string, array ou função allowlist)
+  //Configuração do Cors
   await app.register(fastifyCors, {
     origin: true,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-SIGA-EncBlob", // 👈 seu header JWE
+    ],
+    exposedHeaders: [], // se precisar expor algo
   });
 
   // Rate limit (ex.: 300 req/5min por IP)
@@ -47,7 +67,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(fastifySwagger, {
     openapi: {
       info: { title: "SIGA API", version: "0.1.0" },
-      servers: [{ url: process.env.PUBLIC_URL ?? "http://localhost:3333" }],
+      servers: [{ url: "/" }], // 👈 usa o mesmo origin do /docs
       tags: [{ name: "student", description: "Dados do aluno" }],
     },
     transform: jsonSchemaTransform,
@@ -62,6 +82,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/", async () => ({ ok: true, name: "SIGA API" }));
 
   // Rotas
+  await app.register(GetCookiesOfStudent, { prefix: "/login" });
   await app.register(GetDataOfStudent, { prefix: "/student" });
 
   // 404 amigável
