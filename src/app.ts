@@ -13,8 +13,8 @@ import {
 } from "fastify-type-provider-zod";
 
 // Rotas
-import { GetDataOfStudent } from "./routes/get-data-of-student-route";
-import { GetCookiesOfStudent } from "./routes/get-cookies-from-student-route";
+import GetCookiesOfStudent from "./routes/get-cookies-from-student-route.js";
+import { GetDataOfStudent } from "./routes/get-data-of-student-route.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -68,7 +68,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     openapi: {
       info: { title: "SIGA API", version: "0.1.0" },
       servers: [{ url: "/" }], // 👈 usa o mesmo origin do /docs
-      tags: [{ name: "student", description: "Dados do aluno" }],
+      tags: [{ name: "student", description: "Dados do aluno" }, { name: "auth", description: "Autenticação" }],
     },
     transform: jsonSchemaTransform,
   });

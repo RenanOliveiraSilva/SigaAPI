@@ -1,30 +1,47 @@
+// src/routes/get-cookies-from-student-route.ts
 import { FastifyPluginAsync } from "fastify";
 import puppeteer from "puppeteer";
 
+import { z } from "zod";
+
 export const GetCookiesOfStudent: FastifyPluginAsync = async (app) => {
-  app.get("/capture", async (req, reply) => {
-    // ✅ Só aqui dentro você abre o browser e espera login
+  app.get("/capture", 
+    {
+          // preHandler: [app.authenticate], // habilite se quiser JWT do seu app
+          schema: {
+            tags: ["auth"],
+            summary: "Obtém os cookies de autenticação do aluno a partir do login no SIGA",
+            response: {
+              400: z.object({ error: z.string() }),
+              401: z.object({ error: z.string() }),
+              500: z.object({ error: z.string() }),
+            },
+          },
+          config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+        },
+    async (req, reply) => {
     const browser = await puppeteer.launch({ headless: false });
 
     try {
       const page = await browser.newPage();
+
       await page.goto("https://siga.cps.sp.gov.br/sigaaluno/applogin.aspx", {
         waitUntil: "domcontentloaded",
       });
 
       app.log.info("Faça login/2FA. Timeout: 120s");
-      await new Promise((r) => setTimeout(r, 90000));
+      await page.waitForFunction(
+        () =>
+          location.href.startsWith("https://siga.cps.sp.gov.br/sigaaluno/app.aspx"),
+        { timeout: 120_000 }
+      );
 
-      await page
-        .goto("https://siga.cps.sp.gov.br/sigaaluno/app.aspx", {
-          waitUntil: "networkidle0",
-        })
-        .catch(() => {});
 
       const cookies = await page.cookies();
 
-      // ... filtra/normaliza/aqui ...
-      return reply.send({ cookies }); // ou JWE, conforme seu fluxo
+      // você pode retornar os normalizados como JSON...
+      return reply.send({ cookies });
+
     } catch (e) {
       app.log.error(e);
       return reply.code(500).send({ error: "INTERNAL_ERROR" });
