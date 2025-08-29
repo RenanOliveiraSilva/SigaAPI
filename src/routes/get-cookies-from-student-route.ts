@@ -7,7 +7,6 @@ import { z } from "zod";
 export const GetCookiesOfStudent: FastifyPluginAsync = async (app) => {
   app.get("/capture", 
     {
-          // preHandler: [app.authenticate], // habilite se quiser JWT do seu app
           schema: {
             tags: ["auth"],
             summary: "Obtém os cookies de autenticação do aluno a partir do login no SIGA",
