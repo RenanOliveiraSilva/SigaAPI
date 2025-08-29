@@ -1,13 +1,10 @@
 import puppeteer from "puppeteer";
-import { CookieArraySchema } from "../schemas/cookies.js";
-import normalizeSigaCookies from "../utils/normalize.js";
+import { ResponseData } from "../types/student.js";
 
-export async function buscarNomeUsuario(
+export async function getStudentData(
   cookiesInput: any
-): Promise<string | null> {
-  const raw = CookieArraySchema.parse(cookiesInput);
-  const cookies = normalizeSigaCookies(raw);
-  if (!cookies.length) return null;
+): Promise<ResponseData | null> {
+  if (!cookiesInput.length) return null;
 
   const browser = await puppeteer.launch({
     headless: true, // ou "new"
@@ -35,6 +32,7 @@ export async function buscarNomeUsuario(
       (f) => /siga/i.test(f.url()),
       60_000
     );
+
     if (!frame) throw new Error("Frame não encontrado");
 
     // 1) Dispara a ação do GeneXus para abrir 'meu curso' (preenche o GRID)
@@ -48,22 +46,46 @@ export async function buscarNomeUsuario(
     // 2) Espera o título existir e ter texto
     await frame.waitForFunction(
       () => {
-        const el = document.querySelector("#GRID .uc_appinfo-title");
+        const el = document.querySelector("#GRID .uc_appinfo-card");
         return !!(el && el.textContent && el.textContent.trim().length > 0);
       },
       { timeout: 30_000 }
     );
 
-    // 3) Lê o nome do GRID
-    const nomeDoGrid = await frame.evaluate(
-      () =>
-        document
-          .querySelector("#GRID .uc_appinfo-title")
-          ?.textContent?.trim() || null
-    );
-    if (nomeDoGrid) return nomeDoGrid;
+    // 3) Extrai os dados
+    const dados = await frame.evaluate(() => {
+      const headers =
+        Array.from(document.querySelectorAll("#GRID .uc_appinfo-header")).map(
+          (el) => el.textContent?.trim()
+        ) || null;
 
-    return nomeDoGrid ?? "Nome não encontrado";
+      const content =
+        Array.from(document.querySelectorAll("#GRID .uc_appinfo-content")).map(
+          (el) => el.textContent?.trim()
+        ) || null;
+
+      // Extrair dados a partir do conteúdo
+      const contentText = content[0] || "";
+
+      const extractedData = {
+        name: headers[0] || "",
+        courseStatus:
+          contentText.split("Status:")[1]?.split("RA:")[0]?.trim() || "",
+        ra: contentText.split("RA:")[1]?.split("Unidade:")[0]?.trim() || "",
+        college:
+          contentText.split("Unidade:")[1]?.split("Curso:")[0]?.trim() || "",
+        curse: contentText.split("Curso:")[1]?.split("Turno:")[0]?.trim() || "",
+        turne: contentText.split("Turno:")[1]?.split("PP:")[0]?.trim() || "",
+        semester:
+          parseInt(
+            contentText.split("Semestre:")[1]?.split("Máximo:")[0]?.trim()
+          ) || 0,
+      };
+
+      return extractedData ?? null;
+    });
+
+    return dados as ResponseData;
   } finally {
     await browser.close().catch(() => {});
   }
