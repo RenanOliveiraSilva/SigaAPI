@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { CookieArraySchema } from "../schemas/cookies.js";
-import { buscarNomeUsuario } from "../services/aluno-services.js";
 import { responseDataSchema } from "../types/student.js";
+import { getStudentData } from "../services/aluno-services.js";
 
 export const GetDataOfStudent: FastifyPluginAsync = async (app) => {
   app.post(
@@ -24,15 +24,15 @@ export const GetDataOfStudent: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       try {
         const { cookies } = request.body as { cookies: unknown };
-        const nome = await buscarNomeUsuario(cookies);
+        const data = await getStudentData(cookies);
 
-        if (!nome)
+        if (!data)
           return reply
             .code(401)
             .send({ error: "Sessão inválida ou expirada." });
-        reply.header("cache-control", "no-store");
 
-        return { data: { nome } };
+        reply.header("cache-control", "no-store");
+        return { data };
       } catch (err: any) {
         if (err?.name === "ZodError") {
           return reply.code(400).send({ error: "Body inválido" });

@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer";
-import { ResponseData } from "../types/student.js";
+import { ResponseData, responseDataSchema } from "../types/student.js";
 
 export async function getStudentData(
   cookiesInput: any
