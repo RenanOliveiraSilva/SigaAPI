@@ -11,6 +11,8 @@ export const GetDataOfStudent: FastifyPluginAsync = async (app) => {
       schema: {
         tags: ["student"],
         summary: "Retorna o nome do aluno usando cookies enviados no body",
+        // informa ao OpenAPI/Swagger que essa rota usa bearerAuth
+        security: [{ bearerAuth: [] }],
         body: z.object({ cookies: CookieArraySchema }),
         response: {
           200: z.object({ data: responseDataSchema }),
@@ -20,6 +22,8 @@ export const GetDataOfStudent: FastifyPluginAsync = async (app) => {
         },
       },
       config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      // exige autenticação via JWT (decorated by src/plugins/jwt.ts)
+      preHandler: app.authenticate,
     },
     async (request, reply) => {
       try {

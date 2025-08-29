@@ -15,6 +15,7 @@ import {
 // Rotas
 import GetCookiesOfStudent from "./routes/get-cookies-from-student-route.js";
 import { GetDataOfStudent } from "./routes/get-data-of-student-route.js";
+import jwtPlugin from "./plugins/jwt.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -49,12 +50,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-SIGA-EncBlob", // 👈 seu header JWE
-    ],
-    exposedHeaders: [], // se precisar expor algo
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   // Rate limit (ex.: 300 req/5min por IP)
@@ -68,13 +64,29 @@ export async function buildApp(): Promise<FastifyInstance> {
     openapi: {
       info: { title: "SIGA API", version: "0.1.0" },
       servers: [{ url: "/" }], // 👈 usa o mesmo origin do /docs
-      tags: [{ name: "student", description: "Dados do aluno" }, { name: "auth", description: "Autenticação" }],
+      tags: [
+        { name: "student", description: "Dados do aluno" },
+        { name: "auth", description: "Autenticação" },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+        },
+      },
     },
     transform: jsonSchemaTransform,
   });
 
   await app.register(fastifySwaggerUi, {
     routePrefix: "/docs",
+    uiConfig: {
+      // permite que o token persistente seja salvo na UI entre reloads
+      persistAuthorization: true,
+    },
   });
 
   // Healthcheck e root
@@ -83,6 +95,10 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Rotas
   await app.register(GetCookiesOfStudent, { prefix: "/login" });
+  // registra plugin de JWT (vai lançar se JWT_SECRET não estiver definido)
+  await app.register(jwtPlugin);
+
+  // registra rotas de /student (as rotas individuais terão preHandler para proteger)
   await app.register(GetDataOfStudent, { prefix: "/student" });
 
   // 404 amigável

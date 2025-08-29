@@ -14,16 +14,18 @@ export default fp(async (app) => {
     },
   });
 
-  app.decorate(
-    "authenticate",
-    async (request: any, reply: any) => {
-      try {
-        await request.jwtVerify();
-      } catch (err) {
-        return reply.code(401).send({ error: "UNAUTHORIZED" });
-      }
+  app.decorate("authenticate", async (request: any, reply: any) => {
+    try {
+      await request.jwtVerify();
+    } catch (err) {
+      // log para facilitar debug: mostra o Authorization header e o erro
+      // app.log.warn(
+      //   { err, authorization: request.headers?.authorization },
+      //   "JWT verification failed"
+      // );
+      return reply.code(401).send({ error: "UNAUTHORIZED" });
     }
-  );
+  });
 });
 
 declare module "fastify" {
