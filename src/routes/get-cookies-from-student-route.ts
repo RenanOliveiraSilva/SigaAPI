@@ -24,40 +24,67 @@ export const GetCookiesOfStudent: FastifyPluginAsync = async (app) => {
       const browser = await puppeteer.launch({ headless: false });
 
       try {
-        const page = await browser.newPage();
+        // const page = await browser.newPage();
 
-        await page.goto("https://siga.cps.sp.gov.br/sigaaluno/applogin.aspx", {
-          waitUntil: "domcontentloaded",
-        });
+        // await page.goto("https://siga.cps.sp.gov.br/sigaaluno/applogin.aspx", {
+        //   waitUntil: "domcontentloaded",
+        // });
 
-        app.log.info("Faça login/2FA. Timeout: 120s");
-        await page.waitForFunction(
-          () =>
-            location.href.startsWith(
-              "https://siga.cps.sp.gov.br/sigaaluno/app.aspx"
-            ),
-          { timeout: 120_000 }
-        );
+        // app.log.info("Faça login/2FA. Timeout: 120s");
+        // await page.waitForFunction(
+        //   () =>
+        //     location.href.startsWith(
+        //       "https://siga.cps.sp.gov.br/sigaaluno/app.aspx"
+        //     ),
+        //   { timeout: 120_000 }
+        // );
 
-        const cookies = await page.cookies();
+        // const cookies = await page.cookies();
 
         // se obteve cookies, assina um JWT e retorna o token junto com os cookies
-        if (cookies && cookies.length > 0) {
-          if (!app.jwt) {
-            app.log.error("JWT plugin não registrado");
-            return reply.code(500).send({ error: "JWT_NOT_AVAILABLE" });
-          }
+        // if (cookies && cookies.length > 0) {
+        //   if (!app.jwt) {
+        //     app.log.error("JWT plugin não registrado");
+        //     return reply.code(500).send({ error: "JWT_NOT_AVAILABLE" });
+        //   }
 
-          const token = app.jwt.sign(
-            { cookies },
-            { expiresIn: process.env.JWT_EXPIRES_IN ?? "15m" }
-          );
+        const token = app.jwt.sign(
+          {
+            cookies: [
+              {
+                name: "string",
+                value: "string",
+                domain: "string",
+                path: "string",
+                httpOnly: true,
+                secure: true,
+                sameSite: "Lax",
+                expires: 0,
+              },
+            ],
+          },
+          { expiresIn: process.env.JWT_EXPIRES_IN ?? "15m" }
+        );
 
-          return reply.send({ cookies, token });
-        }
+        return reply.send({
+          cookies: [
+            {
+              name: "string",
+              value: "string",
+              domain: "string",
+              path: "string",
+              httpOnly: true,
+              secure: true,
+              sameSite: "Lax",
+              expires: 0,
+            },
+          ],
+          token,
+        });
+        // }
 
-        // sem cookies — retorna a lista vazia
-        return reply.send({ cookies });
+        // // sem cookies — retorna a lista vazia
+        // return reply.send({ cookies });
       } catch (e) {
         app.log.error(e);
         return reply.code(500).send({ error: "INTERNAL_ERROR" });
