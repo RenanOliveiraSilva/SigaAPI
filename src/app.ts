@@ -16,6 +16,7 @@ import {
 import GetCookiesOfStudent from "./routes/get-cookies-from-student-route.js";
 import { GetDataOfStudent } from "./routes/get-data-of-student-route.js";
 import jwtPlugin from "./plugins/jwt.js";
+import LoginStartRoute from "./routes/get-code-autenticate.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -93,13 +94,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/", async () => ({ ok: true, name: "SIGA API" }));
 
-  // Rotas
-  await app.register(GetCookiesOfStudent, { prefix: "/login" });
   // registra plugin de JWT (vai lançar se JWT_SECRET não estiver definido)
   await app.register(jwtPlugin);
 
-  // registra rotas de /student (as rotas individuais terão preHandler para proteger)
+  // Rotas
+  await app.register(GetCookiesOfStudent, { prefix: "/login" });
   await app.register(GetDataOfStudent, { prefix: "/student" });
+  await app.register(LoginStartRoute, { prefix: "/student" });
 
   // 404 amigável
   app.setNotFoundHandler((req, reply) => {
