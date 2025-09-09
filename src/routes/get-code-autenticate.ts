@@ -48,7 +48,7 @@ export const LoginStartRoute: FastifyPluginAsync = async (app) => {
 
       // 1) Chrome compatível com container
       const browser = await puppeteer.launch({
-        headless: false,                              // em cloud use headless
+        headless: false, // em cloud use headless
         executablePath: puppeteer.executablePath(),
         args: [
           "--no-sandbox",
@@ -70,7 +70,7 @@ export const LoginStartRoute: FastifyPluginAsync = async (app) => {
 
         // 2.1) Clicar no “Ingressar no sistema”
         const clickableSelector =
-          '#GRID .uc_pointer.uc_p30[onclick*="bootstrapclick(\'LOGIN\')"]';
+          "#GRID .uc_pointer.uc_p30[onclick*=\"bootstrapclick('LOGIN')\"]";
         await page.waitForSelector(clickableSelector, {
           visible: true,
           timeout: 30_000,
@@ -91,21 +91,32 @@ export const LoginStartRoute: FastifyPluginAsync = async (app) => {
 
         // // 3) EMAIL
         await p.waitForFunction(
-            () => location.href.includes("login.microsoftonline.com"),
-            { timeout: 60_000 }
+          () => location.href.includes("login.microsoftonline.com"),
+          { timeout: 60_000 }
         );
 
         const EMAIL_SELECTOR = '#i0116, input[name="loginfmt"]';
-        await p.waitForSelector(EMAIL_SELECTOR, { visible: true, timeout: 60_000 });
+        await p.waitForSelector(EMAIL_SELECTOR, {
+          visible: true,
+          timeout: 60_000,
+        });
 
         // 3) foca e digita
-        await p.evaluate((sel) => (document.querySelector(sel) as HTMLInputElement)?.focus(), EMAIL_SELECTOR);
+        await p.evaluate(
+          (sel) => (document.querySelector(sel) as HTMLInputElement)?.focus(),
+          EMAIL_SELECTOR
+        );
         await p.type(EMAIL_SELECTOR, email, { delay: 25 });
 
         // 4) clica em “Avançar” e espera a próxima tela
         await Promise.all([
-            p.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => {}),
-            p.click("#idSIButton9"),
+          p
+            .waitForNavigation({
+              waitUntil: "domcontentloaded",
+              timeout: 60_000,
+            })
+            .catch(() => {}),
+          p.click("#idSIButton9"),
         ]);
 
         // await Promise.race([
@@ -193,7 +204,7 @@ export const LoginStartRoute: FastifyPluginAsync = async (app) => {
         // })();
 
         // 200 OK — schema StartOkSchema
-        return reply.send({ sessionId: '1', status: "waiting_2fa", code: '' });
+        return reply.send({ sessionId: "1", status: "waiting_2fa", code: "" });
       } catch (e: any) {
         await browser.close().catch(() => {});
         request.log.error(e);
