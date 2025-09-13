@@ -64,7 +64,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(fastifySwagger, {
     openapi: {
       info: { title: "SIGA API", version: "0.1.0" },
-      servers: [{ url: "/" }], // 👈 usa o mesmo origin do /docs
+      servers: [{ url: "/" }, { url: "https://sigaapi-ivfx.onrender.com/" }], // 👈 usa o mesmo origin do /docs
       tags: [
         { name: "student", description: "Dados do aluno" },
         { name: "auth", description: "Autenticação" },
