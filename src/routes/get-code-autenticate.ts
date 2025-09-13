@@ -2,7 +2,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import puppeteer from 'puppeteer';
+import puppeteer, { executablePath } from 'puppeteer';
 import crypto from 'crypto';
 import { CookieJar } from 'tough-cookie';
 import { sessions } from '../auth/store.js';
@@ -37,8 +37,8 @@ export const LoginStartRoute: FastifyPluginAsync = async (app) => {
 
       const browser = await puppeteer.launch({
         headless: true,
-        executablePath: puppeteer.executablePath(),
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        executablePath: await executablePath(), // Puppeteer resolve sozinho
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
 
       try {
