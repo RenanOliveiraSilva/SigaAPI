@@ -1,217 +1,113 @@
-// src/routes/login-start-route.ts
-import { FastifyPluginAsync } from "fastify";
-import { ZodTypeProvider } from "fastify-type-provider-zod";
-import puppeteer from "puppeteer";
-import { randomUUID } from "crypto";
-import { z } from "zod";
-import { flows } from "../core/login-session-storage.js";
+// src/routes/login-start.ts
+import { FastifyPluginAsync } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import puppeteer from 'puppeteer';
+import crypto from 'crypto';
+import { CookieJar } from 'tough-cookie';
+import { sessions } from '../auth/store.js';
 
-const BodySchema = z.object({
+const Body = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
-
-const StartOkSchema = z.object({
+const Ok = z.object({
   sessionId: z.string().uuid(),
-  status: z.literal("waiting_2fa"),
-  code: z.string().min(1).optional(),
+  status: z.literal('waiting_2fa'),
+  twofaUrl: z.string().url(),
 });
-
-const ErrorSchema = z.object({ error: z.string() });
-const ErrorWithDetailSchema = z.object({
-  error: z.string(),
-  detail: z.string().optional(),
-});
+const Err = z.object({ error: z.string(), detail: z.string().optional() });
 
 export const LoginStartRoute: FastifyPluginAsync = async (app) => {
-  // habilita zod como type provider
   const r = app.withTypeProvider<ZodTypeProvider>();
 
   r.post(
-    "/login/start",
+    '/login/start',
     {
       schema: {
-        tags: ["auth"],
-        summary:
-          "Inicia o login no SIGA, avança até a tela de 2FA e retorna o código + sessionId",
-        body: BodySchema,
-        response: {
-          200: StartOkSchema,
-          400: ErrorSchema,
-          500: ErrorWithDetailSchema,
-        },
+        body: Body,
+        response: { 200: Ok, 500: Err },
+        tags: ['auth'],
+        summary: 'Avança até 2FA e devolve URL proxy para concluir no WebView',
       },
-      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
     },
-    async (request, reply) => {
-      const { email, password } = request.body; // já validado pelo Zod
+    async (req, reply) => {
+      const { email, password } = req.body;
 
-      // 1) Chrome compatível com container
       const browser = await puppeteer.launch({
-        headless: false, // em cloud use headless
+        headless: true,
         executablePath: puppeteer.executablePath(),
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--no-zygote",
-        ],
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       });
 
-      const page = await browser.newPage();
-      await page.setExtraHTTPHeaders({ "Accept-Language": "pt-BR,pt;q=0.9" });
-
       try {
-        // 2) Tela inicial do SIGA
-        await page.goto("https://siga.cps.sp.gov.br/sigaaluno/applogin.aspx", {
-          waitUntil: "domcontentloaded",
-        });
+        const page = await browser.newPage();
+        await page.setExtraHTTPHeaders({ 'Accept-Language': 'pt-BR,pt;q=0.9' });
 
-        // 2.1) Clicar no “Ingressar no sistema”
-        const clickableSelector =
-          "#GRID .uc_pointer.uc_p30[onclick*=\"bootstrapclick('LOGIN')\"]";
-        await page.waitForSelector(clickableSelector, {
-          visible: true,
-          timeout: 30_000,
-        });
+        // 1) Abre SIGA e vai para MS login
+        await page.goto('https://siga.cps.sp.gov.br/sigaaluno/applogin.aspx', { waitUntil: 'domcontentloaded' });
 
-        const [loginPage] = await Promise.all([
-          browser
-            .waitForTarget(
-              (t) => t.url().includes("login.microsoftonline.com"),
-              { timeout: 60_000 }
-            )
-            .then((t) => t.page())
-            .catch(() => null),
-          page.click(clickableSelector, { delay: 40 }),
+        // Ajuste o seletor do botão que dispara o login MS se necessário
+        const startSel = '#GRID .uc_pointer.uc_p30';
+        await page.waitForSelector(startSel, { timeout: 30000 });
+        const [msPage] = await Promise.all([
+          browser.waitForTarget(t => t.url().includes('login.microsoftonline.com'), { timeout: 60000 }).then(t => t.page()),
+          page.click(startSel),
         ]);
+        const p = msPage ?? page;
 
-        const p = loginPage ?? page;
-
-        // // 3) EMAIL
-        await p.waitForFunction(
-          () => location.href.includes("login.microsoftonline.com"),
-          { timeout: 60_000 }
-        );
-
-        const EMAIL_SELECTOR = '#i0116, input[name="loginfmt"]';
-        await p.waitForSelector(EMAIL_SELECTOR, {
-          visible: true,
-          timeout: 60_000,
-        });
-
-        // 3) foca e digita
-        await p.evaluate(
-          (sel) => (document.querySelector(sel) as HTMLInputElement)?.focus(),
-          EMAIL_SELECTOR
-        );
-        await p.type(EMAIL_SELECTOR, email, { delay: 25 });
-
-        // 4) clica em “Avançar” e espera a próxima tela
+        // 2) Email
+        await p.waitForSelector('input[type=email], #i0116, input[name=loginfmt]', { timeout: 60000 });
+        await p.type('input[name=loginfmt], #i0116, input[type=email]', email, { delay: 20 });
         await Promise.all([
-          p
-            .waitForNavigation({
-              waitUntil: "domcontentloaded",
-              timeout: 60_000,
-            })
-            .catch(() => {}),
-          p.click("#idSIButton9"),
+          p.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {}),
+          p.click('#idSIButton9'),
         ]);
 
-        // await Promise.race([
-        //   p.waitForSelector('input[name="loginfmt"]', { timeout: 60_000 }),
-        //   p.waitForFunction(
-        //     () => location.href.includes("login.microsoftonline.com"),
-        //     { timeout: 60_000 }
-        //   ),
-        // ]);
-        // await p.type('input[name="loginfmt"]', email, { delay: 20 });
-        // await p.click("#idSIButton9"); // Avançar
-        // await p
-        //   .waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 })
-        //   .catch(() => {});
+        // 3) Senha
+        await p.waitForSelector('input[name=passwd]', { timeout: 60000 });
+        await p.type('input[name=passwd]', password, { delay: 20 });
+        await Promise.all([
+          p.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {}),
+          p.click('#idSIButton9'),
+        ]);
 
-        // // 4) SENHA
-        // await p.waitForSelector('input[name="passwd"]', { timeout: 60_000 });
-        // await p.type('input[name="passwd"]', password, { delay: 20 });
-        // await p.click("#idSIButton9"); // Entrar
-        // await p
-        //   .waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 })
-        //   .catch(() => {});
+        // 4) Agora deve surgir o fluxo de 2FA (tela de verificação)
+        const currentUrl = p.url(); // URL exata onde parou
 
-        // // 5) "Manter a sessão iniciada?" (se aparecer) -> Não
-        // try {
-        //   await p.waitForSelector("#idBtn_Back, #idSIButton9", {
-        //     timeout: 10_000,
-        //   });
-        //   const hasNo = await p.$("#idBtn_Back");
-        //   if (hasNo) {
-        //     await p.click("#idBtn_Back");
-        //     await p
-        //       .waitForNavigation({
-        //         waitUntil: "domcontentloaded",
-        //         timeout: 60_000,
-        //       })
-        //       .catch(() => {});
-        //   }
-        // } catch {}
+        // 5) Transfere cookies do Chrome headless p/ um CookieJar (proxy)
+        const jar = new CookieJar();
+        const all = await p.cookies(); // inclui cookies do domínio atual
+        for (const c of all) {
+          // monta cookie string compreendida pelo tough-cookie
+          const domain = c.domain?.startsWith('.') ? c.domain.slice(1) : c.domain || new URL(currentUrl).hostname;
+          const cookieStr =
+            `${c.name}=${c.value}; Domain=${domain}; Path=${c.path || '/'}`
+            + (c.secure ? '; Secure' : '')
+            + (c.httpOnly ? '; HttpOnly' : '')
+            + (c.expires && c.expires > 0 ? `; Expires=${new Date(c.expires * 1000).toUTCString()}` : '');
+          jar.setCookieSync(cookieStr, new URL(currentUrl).origin);
+        }
 
-        // // 6) Tela de 2FA — extrai o número exibido
-        // await p.waitForFunction(
-        //   () => /\b\d{2,3}\b/.test(document.body.innerText),
-        //   { timeout: 60_000 }
-        // );
-        // const code =
-        //   (await p.evaluate(() => {
-        //     const m = document.body.innerText.match(/\b\d{2,3}\b/);
-        //     return m ? m[0] : null;
-        //   })) ?? undefined;
+        const sid = crypto.randomUUID();
+        sessions.set(sid, {
+          sid,
+          status: 'waiting_2fa',
+          twofaUrl: currentUrl,
+          jar,
+          puppCookies: all,
+          createdAt: Date.now(),
+        });
 
-        // // 7) Registra o fluxo
-        // const id = randomUUID();
-        // flows.set(id, {
-        //   id,
-        //   browser,
-        //   page: p,
-        //   status: "waiting_2fa",
-        //   code,
-        //   createdAt: Date.now(),
-        // });
+        await browser.close().catch(() => {});
+        const twofaProxyUrl = `${req.protocol}://${req.headers.host}/login/2fa/${sid}/relay?u=${encodeURIComponent(currentUrl)}`;
 
-        // // 8) Aguarda aprovação em background
-        // (async () => {
-        //   const flow = flows.get(id);
-        //   if (!flow) return;
-        //   try {
-        //     await p.waitForFunction(
-        //       () =>
-        //         location.href.startsWith(
-        //           "https://siga.cps.sp.gov.br/sigaaluno/app.aspx"
-        //         ),
-        //       { timeout: 120_000 }
-        //     );
-        //     const cookies = await p.cookies();
-        //     flow.status = "done";
-        //     flow.cookies = cookies;
-        //   } catch (e: any) {
-        //     const f = flows.get(id);
-        //     if (f) {
-        //       f.status = "error";
-        //       f.error = e?.message ?? "WAIT_NAV_FAILED";
-        //     }
-        //   }
-        // })();
-
-        // 200 OK — schema StartOkSchema
-        return reply.send({ sessionId: "1", status: "waiting_2fa", code: "" });
+        return reply.send({ sessionId: sid, status: 'waiting_2fa', twofaUrl: twofaProxyUrl });
       } catch (e: any) {
         await browser.close().catch(() => {});
-        request.log.error(e);
-        // 500 — schema ErrorWithDetailSchema
-        return reply
-          .code(500)
-          .send({ error: "START_FAILED", detail: e?.message });
+        req.log.error(e);
+        return reply.code(500).send({ error: 'START_FAILED', detail: e?.message });
       }
     }
   );

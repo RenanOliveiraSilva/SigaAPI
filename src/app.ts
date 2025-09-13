@@ -13,10 +13,10 @@ import {
 } from "fastify-type-provider-zod";
 
 // Rotas
-import GetCookiesOfStudent from "./routes/get-cookies-from-student-route.js";
 import { GetDataOfStudent } from "./routes/get-data-of-student-route.js";
 import jwtPlugin from "./plugins/jwt.js";
 import LoginStartRoute from "./routes/get-code-autenticate.js";
+import Login2faProxyRoute from "./routes/login-2fa-proxy.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -98,8 +98,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(jwtPlugin);
 
   // Rotas
-  await app.register(GetCookiesOfStudent, { prefix: "/login" });
   await app.register(GetDataOfStudent, { prefix: "/student" });
+  await app.register(Login2faProxyRoute, { prefix: "/login" });
   await app.register(LoginStartRoute, { prefix: "/student" });
 
   // 404 amigável

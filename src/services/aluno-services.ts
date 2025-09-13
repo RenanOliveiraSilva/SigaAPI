@@ -7,7 +7,7 @@ export async function getStudentData(
   if (!cookiesInput.length) return null;
 
   const browser = await puppeteer.launch({
-    headless: true, // ou "new"
+    headless: false, // ou "new"
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     defaultViewport: { width: 1366, height: 768 },
   });
